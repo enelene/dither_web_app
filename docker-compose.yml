@@ -8,6 +8,8 @@ services:
 
   watchtower:
     image: containrrr/watchtower
+    environment:
+      - DOCKER_API_VERSION=1.41
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 60 dither_studio_app
