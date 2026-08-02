@@ -242,6 +242,24 @@
         video {
             display: none;
         }
+
+        /* Prominent Capture CTA below camera viewport */
+        #btnCapture {
+            background: #ffffff;
+            color: #000000;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 14px;
+            border-radius: 8px;
+            width: 100%;
+            letter-spacing: 2px;
+            border: 1px solid #ffffff;
+        }
+
+        #btnCapture:hover {
+            background: #dddddd;
+            color: #000000;
+        }
     </style>
 </head>
 
@@ -259,6 +277,9 @@
             <canvas id="displayCanvas"></canvas>
             <video id="videoElement" autoplay playsinline></video>
         </div>
+
+        <!-- Primary Capture Action directly below Camera View -->
+        <button id="btnCapture">GADAIGHE</button>
 
         <!-- Controls -->
         <div class="control-panel">
@@ -329,8 +350,6 @@
                     <input type="range" id="brightnessSlider" min="-50" max="50" value="0" step="5">
                 </div>
             </div>
-
-            <button id="btnCapture">Save Snapshot</button>
         </div>
     </main>
 
