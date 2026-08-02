@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dither Studio</title>
+    <title>Mountain Dither Studio</title>
 
     <!-- Google Fonts: Space Grotesk -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -184,14 +184,15 @@
         }
 
         .button-grid {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
 
         .button-grid button,
         .button-grid label {
-            flex: 1;
             text-align: center;
+            width: 100%;
         }
 
         .file-label {
@@ -263,9 +264,10 @@
         <div class="control-panel">
             <!-- Source & Mirror Buttons -->
             <div class="control-group">
-                <label>Input Source</label>
+                <label>Input Source & Camera Controls</label>
                 <div class="button-grid">
                     <button id="btnCamera" class="active">Camera</button>
+                    <button id="btnFlipCam">Cam: Front</button>
                     <button id="btnMirror">Mirror: Off</button>
                     <label class="file-label">
                         Upload
@@ -340,6 +342,7 @@
         const statusBadge = document.getElementById('statusBadge');
 
         const btnCamera = document.getElementById('btnCamera');
+        const btnFlipCam = document.getElementById('btnFlipCam');
         const btnMirror = document.getElementById('btnMirror');
         const fileInput = document.getElementById('fileInput');
         const btnCapture = document.getElementById('btnCapture');
@@ -359,6 +362,7 @@
         // State Variables
         let mode = 'camera'; // 'camera' or 'file'
         let isMirrored = false;
+        let facingMode = 'user'; // 'user' (front) or 'environment' (back)
         let loadedImage = null;
         let streamActive = false;
         let useFastAPI = false;
@@ -417,7 +421,20 @@
 
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                // Stop previous active stream if switching cameras
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: facingMode
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 streamActive = true;
                 mode = 'camera';
@@ -428,6 +445,15 @@
                 streamActive = false;
             }
         }
+
+        // Camera Flip Toggle Handler
+        btnFlipCam.addEventListener('click', () => {
+            facingMode = (facingMode === 'user') ? 'environment' : 'user';
+            btnFlipCam.textContent = `Cam: ${facingMode === 'user' ? 'Front' : 'Back'}`;
+            if (mode === 'camera') {
+                startCamera();
+            }
+        });
 
         // Mirror Toggle Handler
         btnMirror.addEventListener('click', () => {
