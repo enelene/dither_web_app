@@ -251,16 +251,19 @@ function startVideoRecording() {
     }
     const recordStream = new MediaStream(recordTracks);
 
-    let options = { mimeType: 'video/webm;codecs=vp9,opus' };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options = { mimeType: 'video/webm;codecs=vp8,opus' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            options = { mimeType: 'video/webm' };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options = { mimeType: 'video/mp4' };
-            }
-        }
-    }
+    // Prioritize MP4 formats (H.264/AAC) for universal compatibility with iOS, Mac, Android, & Windows
+    const candidateTypes = [
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'video/mp4;codecs=avc1',
+        'video/mp4;codecs=h264',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+    ];
+
+    const selectedMime = candidateTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    const options = selectedMime ? { mimeType: selectedMime } : {};
 
     try {
         mediaRecorder = new MediaRecorder(recordStream, options);
