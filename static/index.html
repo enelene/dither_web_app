@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dither Studio</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>DITHER STUDIO</h1>
+        <p>Pluggable Real-time Image & Camera Dithering Engine</p>
+    </header>
+
+    <main class="app-container">
+        <div class="viewport-section">
+            <!-- Hidden processing video/canvas elements -->
+            <video id="webcam" autoplay playsinline style="display: none;"></video>
+            <canvas id="captureCanvas" style="display: none;"></canvas>
+
+            <!-- Output Viewport -->
+            <div class="preview-card">
+                <img id="outputImage" alt="Dithered Output Preview"
+                    src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='480'><rect width='100%' height='100%' fill='%23111'/><text x='50%' y='50%' fill='%23555' text-anchor='middle' font-family='monospace'>Awaiting Stream or Upload...</text></svg>">
+                <div id="statusBadge" class="badge">OFFLINE</div>
+            </div>
+        </div>
+
+        <aside class="controls-panel">
+            <!-- Input Source Switcher -->
+            <div class="control-card">
+                <h3>Input Source</h3>
+                <div class="button-group">
+                    <button id="btnWebcam" class="active">📷 Live Camera</button>
+                    <label class="button-label">
+                        📁 Upload File
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dynamic Algorithm Configuration -->
+            <div class="control-card">
+                <h3>Algorithm</h3>
+                <div class="field-group">
+                    <label for="algorithmSelect">Method</label>
+                    <select id="algorithmSelect"></select>
+                </div>
+                <p id="algorithmDesc" class="description-text"></p>
+
+                <!-- Dynamically rendered parameters inject here -->
+                <div id="dynamicParamsContainer" class="params-grid"></div>
+            </div>
+
+            <!-- Action Footer -->
+            <button id="btnSnapshot" class="primary-btn">📸 Save Image</button>
+        </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
