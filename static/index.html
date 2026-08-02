@@ -1,66 +1,406 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-black text-white select-none">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dither Studio</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Dither Lab</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            /* ============================================================
+               CHANGE YOUR BACKGROUND IMAGE HERE:
+               Paste your image URL or local file path (e.g. 'mountain.jpg')
+               ============================================================ */
+            --bg-image: url('/static/mountain.jpg');
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #000000;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        canvas,
+        img.output-preview {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Minimal B&W Buttons */
+        .btn-bw {
+            transition: all 0.15s ease;
+            border: 1px solid #ffffff;
+            background-color: #000000;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .btn-bw:hover {
+            background-color: #333333;
+        }
+
+        .btn-bw.active {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        /* Minimal B&W Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #333333;
+            height: 4px;
+            border-radius: 0px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 10px;
+            background: #ffffff;
+            cursor: pointer;
+            border-radius: 0px;
+        }
+    </style>
 </head>
 
-<body>
+<body class="min-h-full flex flex-col justify-between text-white p-4 md:p-8 antialiased">
 
-    <header>
-        <h1>DITHER STUDIO</h1>
-        <p>Pluggable Real-time Image & Camera Dithering Engine</p>
+    <!-- Header -->
+    <header class="max-w-5xl mx-auto w-full flex justify-between items-center pb-6 border-b border-white/20 mb-6">
+        <h1 class="text-xl md:text-2xl font-bold uppercase tracking-wider text-white">
+            DITHER LAB
+        </h1>
+        <span id="backendStatus" class="text-xs uppercase text-zinc-400 tracking-widest">CONNECTING...</span>
     </header>
 
-    <main class="app-container">
-        <div class="viewport-section">
-            <!-- Hidden processing video/canvas elements -->
-            <video id="webcam" autoplay playsinline style="display: none;"></video>
-            <canvas id="captureCanvas" style="display: none;"></canvas>
+    <!-- Main Studio -->
+    <main class="max-w-5xl mx-auto w-full flex flex-col md:flex-row gap-8 items-start justify-center flex-1">
 
-            <!-- Output Viewport -->
-            <div class="preview-card">
-                <img id="outputImage" alt="Dithered Output Preview"
-                    src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='480'><rect width='100%' height='100%' fill='%23111'/><text x='50%' y='50%' fill='%23555' text-anchor='middle' font-family='monospace'>Awaiting Stream or Upload...</text></svg>">
-                <div id="statusBadge" class="badge">OFFLINE</div>
+        <!-- Image Viewport -->
+        <div class="w-full md:w-2/3 flex flex-col items-center">
+            <div class="w-full bg-black/80 border border-white/30 p-2 shadow-2xl backdrop-blur-md">
+                <div
+                    class="relative w-full aspect-[4/3] bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-800">
+                    <canvas id="ditherCanvas" class="w-full h-full object-contain"></canvas>
+                </div>
             </div>
         </div>
 
-        <aside class="controls-panel">
-            <!-- Input Source Switcher -->
-            <div class="control-card">
-                <h3>Input Source</h3>
-                <div class="button-group">
-                    <button id="btnWebcam" class="active">📷 Live Camera</button>
-                    <label class="button-label">
-                        📁 Upload File
-                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        <!-- Controls Sidebar -->
+        <aside class="w-full md:w-1/3 bg-black/90 border border-white/30 p-6 space-y-6 backdrop-blur-md">
+
+            <h2 class="text-sm font-bold uppercase tracking-wider border-b border-zinc-800 pb-2 text-zinc-300">
+                CONTROLS
+            </h2>
+
+            <!-- Input Source (Camera vs Upload) -->
+            <div class="space-y-2">
+                <label class="text-xs text-zinc-400 uppercase tracking-wider block">Input Source</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btnSrcCam" class="btn-bw active py-2 text-xs uppercase">Camera</button>
+                    <label class="btn-bw py-2 text-xs uppercase text-center cursor-pointer block">
+                        Upload
+                        <input type="file" id="fileUploader" accept="image/*" class="hidden">
                     </label>
                 </div>
             </div>
 
-            <!-- Dynamic Algorithm Configuration -->
-            <div class="control-card">
-                <h3>Algorithm</h3>
-                <div class="field-group">
-                    <label for="algorithmSelect">Method</label>
-                    <select id="algorithmSelect"></select>
-                </div>
-                <p id="algorithmDesc" class="description-text"></p>
-
-                <!-- Dynamically rendered parameters inject here -->
-                <div id="dynamicParamsContainer" class="params-grid"></div>
+            <!-- Algorithm Selection (Dynamic from FastAPI) -->
+            <div class="space-y-2">
+                <label class="text-xs text-zinc-400 uppercase tracking-wider block">Algorithm</label>
+                <select id="algoSelect"
+                    class="w-full bg-black text-white border border-white/40 p-2 text-xs uppercase outline-none focus:border-white">
+                    <option value="bayer">BAYER MATRIX DITHERING</option>
+                    <option value="floyd_steinberg">FLOYD-STEINBERG DIFFUSION</option>
+                </select>
             </div>
 
-            <!-- Action Footer -->
-            <button id="btnSnapshot" class="primary-btn">📸 Save Image</button>
+            <!-- Palette Dropdown -->
+            <div class="space-y-2">
+                <label class="text-xs text-zinc-400 uppercase tracking-wider block">Color Palette</label>
+                <select id="paletteSelect"
+                    class="w-full bg-black text-white border border-white/40 p-2 text-xs uppercase outline-none focus:border-white">
+                    <option value="bw">1-BIT MONOCHROME (BLACK & WHITE)</option>
+                    <option value="epaper">6-COLOR E-PAPER PALETTE</option>
+                    <option value="gameboy">GAME BOY GREEN</option>
+                    <option value="slate">SLATE & SNOW</option>
+                </select>
+            </div>
+
+            <!-- Image Adjustment Sliders -->
+            <div class="space-y-4 pt-2 border-t border-zinc-800">
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-zinc-400 uppercase">
+                        <span>Pixelation</span>
+                        <span id="valPixelation" class="text-white">2x</span>
+                    </div>
+                    <input type="range" id="inputPixelation" min="1" max="8" value="2" class="w-full">
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-zinc-400 uppercase">
+                        <span>Contrast</span>
+                        <span id="valContrast" class="text-white">1.2</span>
+                    </div>
+                    <input type="range" id="inputContrast" min="0.5" max="3.0" step="0.1" value="1.2" class="w-full">
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-zinc-400 uppercase">
+                        <span>Brightness</span>
+                        <span id="valBrightness" class="text-white">0</span>
+                    </div>
+                    <input type="range" id="inputBrightness" min="-100" max="100" step="5" value="0" class="w-full">
+                </div>
+            </div>
+
+            <!-- Save Image Button -->
+            <div class="pt-4 border-t border-zinc-800">
+                <button id="btnExport"
+                    class="w-full bg-white text-black font-bold py-3 text-xs uppercase tracking-wider hover:bg-zinc-200 transition-colors">
+                    Save Dithered Image
+                </button>
+            </div>
         </aside>
     </main>
 
-    <script src="/static/app.js"></script>
+    <!-- Hidden Video & Upload Holders -->
+    <video id="webcamVideo" class="hidden" autoplay playsinline muted></video>
+    <img id="userSourceImage" class="hidden" alt="Source">
+
+    <script>
+        const state = {
+            sourceMode: 'camera', // 'camera' or 'image'
+            algorithm: 'bayer',
+            bayerSize: 4,
+            paletteKey: 'bw',
+            pixelation: 2,
+            contrast: 1.2,
+            brightness: 0,
+            hasBackend: false
+        };
+
+        // Bayer Matrices for Client Fallback
+        const BAYER_4x4 = [
+            0 / 16, 8 / 16, 2 / 16, 10 / 16,
+            12 / 16, 4 / 16, 14 / 16, 6 / 16,
+            3 / 16, 11 / 16, 1 / 16, 9 / 16,
+            15 / 16, 7 / 16, 13 / 16, 5 / 16
+        ];
+
+        // Palettes
+        const PALETTES = {
+            bw: [[0, 0, 0], [255, 255, 255]],
+            epaper: [[0, 0, 0], [255, 255, 255], [200, 0, 0], [255, 255, 0], [0, 128, 0], [0, 0, 128]],
+            gameboy: [[15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]],
+            slate: [[15, 20, 25], [70, 85, 95], [150, 165, 175], [235, 240, 245]]
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('ditherCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const bufferCanvas = document.createElement('canvas');
+        const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+
+        const video = document.getElementById('webcamVideo');
+        const userImg = document.getElementById('userSourceImage');
+        const backendStatus = document.getElementById('backendStatus');
+
+        // Check FastAPI Backend
+        async function checkBackend() {
+            try {
+                const res = await fetch('/api/v1/algorithms');
+                if (res.ok) {
+                    const algos = await res.json();
+                    state.hasBackend = true;
+                    backendStatus.textContent = "FASTAPI BACKEND CONNECTED";
+                    backendStatus.className = "text-xs uppercase text-emerald-400 tracking-widest";
+
+                    // Populate Algorithm Select from Backend
+                    const select = document.getElementById('algoSelect');
+                    select.innerHTML = '';
+                    algos.forEach(algo => {
+                        const opt = document.createElement('option');
+                        opt.value = algo.id;
+                        opt.textContent = algo.name.toUpperCase();
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                // Standalone / Offline mode
+                state.hasBackend = false;
+                backendStatus.textContent = "STANDALONE CLIENT MODE";
+                backendStatus.className = "text-xs uppercase text-zinc-500 tracking-widest";
+            }
+        }
+
+        // Control Wiring
+        document.getElementById('algoSelect').addEventListener('change', (e) => {
+            state.algorithm = e.target.value;
+        });
+
+        document.getElementById('paletteSelect').addEventListener('change', (e) => {
+            state.paletteKey = e.target.value;
+        });
+
+        document.getElementById('inputPixelation').addEventListener('input', (e) => {
+            state.pixelation = parseInt(e.target.value);
+            document.getElementById('valPixelation').textContent = `${state.pixelation}x`;
+        });
+
+        document.getElementById('inputContrast').addEventListener('input', (e) => {
+            state.contrast = parseFloat(e.target.value);
+            document.getElementById('valContrast').textContent = state.contrast.toFixed(1);
+        });
+
+        document.getElementById('inputBrightness').addEventListener('input', (e) => {
+            state.brightness = parseInt(e.target.value);
+            document.getElementById('valBrightness').textContent = state.brightness;
+        });
+
+        // Input Source Buttons
+        const btnCam = document.getElementById('btnSrcCam');
+        const fileUploader = document.getElementById('fileUploader');
+
+        btnCam.addEventListener('click', () => setCameraMode());
+
+        async function setCameraMode() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                video.srcObject = stream;
+                state.sourceMode = 'camera';
+                btnCam.classList.add('active');
+            } catch (err) {
+                console.warn('Camera not available or access denied.');
+            }
+        }
+
+        fileUploader.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    userImg.src = event.target.result;
+                    userImg.onload = () => {
+                        state.sourceMode = 'image';
+                        btnCam.classList.remove('active');
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function getNearestColor(r, g, b, palette) {
+            let minDist = Infinity;
+            let bestColor = palette[0];
+            for (let i = 0; i < palette.length; i++) {
+                const dr = r - palette[i][0];
+                const dg = g - palette[i][1];
+                const db = b - palette[i][2];
+                const dist = dr * dr + dg * dg + db * db;
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestColor = palette[i];
+                }
+            }
+            return bestColor;
+        }
+
+        // Render Frame
+        function renderFrame() {
+            const displayWidth = 640;
+            const displayHeight = 480;
+
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+            }
+
+            const scale = Math.max(1, state.pixelation);
+            const bw = Math.floor(displayWidth / scale);
+            const bh = Math.floor(displayHeight / scale);
+
+            if (bufferCanvas.width !== bw || bufferCanvas.height !== bh) {
+                bufferCanvas.width = bw;
+                bufferCanvas.height = bh;
+            }
+
+            // Draw Source
+            if (state.sourceMode === 'camera' && video.readyState >= 2) {
+                bufferCtx.drawImage(video, 0, 0, bw, bh);
+            } else if (state.sourceMode === 'image' && userImg.complete && userImg.naturalWidth > 0) {
+                bufferCtx.drawImage(userImg, 0, 0, bw, bh);
+            } else {
+                // Blank canvas until user selects camera or uploads image
+                bufferCtx.fillStyle = '#0a0a0a';
+                bufferCtx.fillRect(0, 0, bw, bh);
+            }
+
+            // Perform Dithering
+            const imgData = bufferCtx.getImageData(0, 0, bw, bh);
+            const data = imgData.data;
+            const palette = PALETTES[state.paletteKey];
+            const contrast = state.contrast;
+            const brightness = state.brightness;
+
+            for (let y = 0; y < bh; y++) {
+                for (let x = 0; x < bw; x++) {
+                    const i = (y * bw + x) * 4;
+
+                    let r = data[i];
+                    let g = data[i + 1];
+                    let b = data[i + 2];
+
+                    r = (r - 128) * contrast + 128 + brightness;
+                    g = (g - 128) * contrast + 128 + brightness;
+                    b = (b - 128) * contrast + 128 + brightness;
+
+                    const threshold = BAYER_4x4[(y % 4) * 4 + (x % 4)];
+                    const noise = (threshold - 0.5) * 110;
+
+                    const nr = Math.min(255, Math.max(0, r + noise));
+                    const ng = Math.min(255, Math.max(0, g + noise));
+                    const nb = Math.min(255, Math.max(0, b + noise));
+
+                    const [finalR, finalG, finalB] = getNearestColor(nr, ng, nb, palette);
+
+                    data[i] = finalR;
+                    data[i + 1] = finalG;
+                    data[i + 2] = finalB;
+                }
+            }
+
+            bufferCtx.putImageData(imgData, 0, 0);
+
+            // Draw to Display Canvas
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(bufferCanvas, 0, 0, bw, bh, 0, 0, displayWidth, displayHeight);
+
+            requestAnimationFrame(renderFrame);
+        }
+
+        // Export Photo
+        document.getElementById('btnExport').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `dither-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        // Init
+        checkBackend();
+        setCameraMode();
+        requestAnimationFrame(renderFrame);
+    </script>
 </body>
 
 </html>
