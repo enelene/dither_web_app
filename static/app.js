@@ -28,8 +28,15 @@ let mode = 'camera';
 let isMirrored = false;
 let facingMode = 'user';
 let loadedImage = null;
+let loadedVideoActive = false;
 let streamActive = false;
 let useFastAPI = false;
+
+// Hidden video element for playing back uploaded video files
+const fileVideo = document.createElement('video');
+fileVideo.playsInline = true;
+fileVideo.loop = true;
+fileVideo.muted = true;
 
 // Video Recording Variables
 let mediaRecorder = null;
@@ -174,6 +181,9 @@ function renderFrame() {
     if (mode === 'camera' && streamActive && video.readyState >= 2) {
         srcWidth = video.videoWidth;
         srcHeight = video.videoHeight;
+    } else if (mode === 'file' && loadedVideoActive && fileVideo.readyState >= 2) {
+        srcWidth = fileVideo.videoWidth;
+        srcHeight = fileVideo.videoHeight;
     } else if (mode === 'file' && loadedImage) {
         srcWidth = loadedImage.width;
         srcHeight = loadedImage.height;
@@ -198,6 +208,8 @@ function renderFrame() {
 
     if (mode === 'camera' && streamActive) {
         bctx.drawImage(video, 0, 0, bw, bh);
+    } else if (mode === 'file' && loadedVideoActive) {
+        bctx.drawImage(fileVideo, 0, 0, bw, bh);
     } else if (mode === 'file' && loadedImage) {
         bctx.drawImage(loadedImage, 0, 0, bw, bh);
     }
@@ -359,6 +371,10 @@ matrixSelect.addEventListener('change', () => {
 
 btnCamera.addEventListener('click', () => {
     mode = 'camera';
+    if (loadedVideoActive) {
+        fileVideo.pause();
+        loadedVideoActive = false;
+    }
     btnCamera.classList.add('active');
     statusBadge.textContent = 'CAMERA';
     if (!streamActive) startCamera();
@@ -368,19 +384,38 @@ fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-        const img = new Image();
-        img.onload = () => {
-            loadedImage = img;
+    // Stop any previous file-based media before loading the new one
+    loadedImage = null;
+    if (loadedVideoActive) {
+        fileVideo.pause();
+        loadedVideoActive = false;
+    }
+
+    if (file.type.startsWith('video/')) {
+        const url = URL.createObjectURL(file);
+        fileVideo.src = url;
+        fileVideo.onloadeddata = () => {
+            loadedVideoActive = true;
             mode = 'file';
             btnCamera.classList.remove('active');
-            statusBadge.textContent = 'FILE';
-            renderFrame();
+            statusBadge.textContent = 'FILE (VIDEO)';
+            fileVideo.play();
         };
-        img.src = evt.target.result;
-    };
-    reader.readAsDataURL(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const img = new Image();
+            img.onload = () => {
+                loadedImage = img;
+                mode = 'file';
+                btnCamera.classList.remove('active');
+                statusBadge.textContent = 'FILE';
+                renderFrame();
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 });
 
 async function saveMedia(blob, filename, mimeType) {
@@ -414,7 +449,7 @@ btnCapture.addEventListener('click', () => {
 });
 
 function loop() {
-    if (mode === 'camera') {
+    if (mode === 'camera' || loadedVideoActive) {
         renderFrame();
     }
     requestAnimationFrame(loop);
