@@ -1,4 +1,3 @@
-
 const video = document.getElementById('videoElement');
 const displayCanvas = document.getElementById('displayCanvas');
 const ctx = displayCanvas.getContext('2d');
@@ -120,6 +119,15 @@ async function startCamera() {
 
         video.srcObject = stream;
         video.muted = true;
+        video.playsInline = true;
+
+        try {
+            await video.play();
+        } catch (playErr) {
+            // Autoplay was blocked; camera permission still succeeded,
+            // frame rendering will resume once play() succeeds
+        }
+
         streamActive = true;
         mode = 'camera';
         statusBadge.textContent = 'CAMERA';
@@ -395,6 +403,28 @@ function loop() {
     }
     requestAnimationFrame(loop);
 }
+
+function stopCamera() {
+    if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+    }
+    streamActive = false;
+}
+
+// Release camera/mic when the tab is hidden (backgrounded, minimized, app-switched)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopCamera();
+        statusBadge.textContent = 'PAUSED';
+    } else if (mode === 'camera') {
+        startCamera();
+    }
+});
+
+// Release camera/mic when the tab is closed or navigated away from
+window.addEventListener('pagehide', stopCamera);
+window.addEventListener('beforeunload', stopCamera);
 
 checkFastAPI();
 startCamera();
