@@ -14,6 +14,14 @@
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▲</text></svg>">
     <link rel="stylesheet" href="/static/style.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dither">
 </head>
 
 <body>
@@ -69,7 +77,7 @@
                         <option value="monochrome">1-Bit Monochrome</option>
                         <option value="gameboy">Game Boy</option>
                         <option value="cga_cyberpunk">CGA Cyberpunk</option>
-                        <option value="epaper_6color">e-Paper (6 Color)</option>
+                        <option value="epaper_6color" selected>e-Paper (6 Color)</option>
                     </select>
                 </div>
             </div>
@@ -80,15 +88,15 @@
                     <label for="matrixSelect">Matrix Size</label>
                     <select id="matrixSelect">
                         <option value="2">2x2</option>
-                        <option value="4" selected>4x4</option>
-                        <option value="8">8x8</option>
+                        <option value="4">4x4</option>
+                        <option value="8" selected>8x8</option>
                     </select>
                 </div>
 
                 <!-- Downscale / Pixelation -->
                 <div class="control-group">
-                    <label for="scaleSlider">Downscale (<span id="scaleVal">2</span>x)</label>
-                    <input type="range" id="scaleSlider" min="1" max="8" value="2" step="1">
+                    <label for="scaleSlider">Downscale (<span id="scaleVal">1</span>x)</label>
+                    <input type="range" id="scaleSlider" min="1" max="8" value="1" step="1">
                 </div>
             </div>
 
