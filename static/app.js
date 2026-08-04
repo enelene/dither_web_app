@@ -8,6 +8,7 @@ const btnCamera = document.getElementById('btnCamera');
 const btnFlipCam = document.getElementById('btnFlipCam');
 const btnMirror = document.getElementById('btnMirror');
 const fileInput = document.getElementById('fileInput');
+const btnReset = document.getElementById('btnReset');
 const btnCapture = document.getElementById('btnCapture');
 const btnRecord = document.getElementById('btnRecord');
 
@@ -35,7 +36,7 @@ let useFastAPI = false;
 // Hidden video element for playing back uploaded video files
 const fileVideo = document.createElement('video');
 fileVideo.playsInline = true;
-fileVideo.loop = true;
+fileVideo.loop = false;
 fileVideo.muted = true;
 
 // Video Recording Variables
@@ -264,10 +265,13 @@ function startVideoRecording() {
     recordedChunks = [];
     const canvasStream = displayCanvas.captureStream(30);
 
-    // Combine dithered canvas video track with microphone audio track if available
+    // Combine dithered canvas video track with audio from whichever source is active
     const recordTracks = [...canvasStream.getVideoTracks()];
-    if (video.srcObject && video.srcObject.getAudioTracks().length > 0) {
+    if (mode === 'camera' && video.srcObject && video.srcObject.getAudioTracks().length > 0) {
         recordTracks.push(...video.srcObject.getAudioTracks());
+    } else if (loadedVideoActive && fileVideo.captureStream) {
+        const fileAudioTracks = fileVideo.captureStream().getAudioTracks();
+        if (fileAudioTracks.length > 0) recordTracks.push(...fileAudioTracks);
     }
     const recordStream = new MediaStream(recordTracks);
 
@@ -378,6 +382,18 @@ btnCamera.addEventListener('click', () => {
     btnCamera.classList.add('active');
     statusBadge.textContent = 'CAMERA';
     if (!streamActive) startCamera();
+});
+
+btnReset.addEventListener('click', () => {
+    loadedImage = null;
+    if (loadedVideoActive) {
+        fileVideo.pause();
+        fileVideo.removeAttribute('src');
+        fileVideo.load();
+        loadedVideoActive = false;
+    }
+    fileInput.value = '';
+    btnCamera.click();
 });
 
 fileInput.addEventListener('change', (e) => {
