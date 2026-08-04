@@ -288,15 +288,8 @@ function startVideoRecording() {
     mediaRecorder.onstop = () => {
         const mime = mediaRecorder.mimeType || 'video/webm';
         const blob = new Blob(recordedChunks, { type: mime });
-        const url = URL.createObjectURL(blob);
         const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `dither-video-${Date.now()}.${ext}`;
-        link.click();
-
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        saveMedia(blob, `dither-video-${Date.now()}.${ext}`, mime);
     };
 
     mediaRecorder.start();
@@ -390,11 +383,34 @@ fileInput.addEventListener('change', (e) => {
     reader.readAsDataURL(file);
 });
 
-btnCapture.addEventListener('click', () => {
+async function saveMedia(blob, filename, mimeType) {
+    const file = new File([blob], filename, { type: mimeType });
+
+    // Web Share API with files: on iOS/Android this opens the native share sheet,
+    // which includes "Save Image"/"Save Video" that goes straight to Photos.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({ files: [file] });
+            return;
+        } catch (err) {
+            // User cancelled the share sheet, or share failed — fall through to download
+            if (err.name === 'AbortError') return;
+        }
+    }
+
+    // Fallback (desktop browsers, or share unsupported): standard download
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.download = `dither-${Date.now()}.png`;
-    link.href = displayCanvas.toDataURL('image/png');
+    link.href = url;
+    link.download = filename;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+btnCapture.addEventListener('click', () => {
+    displayCanvas.toBlob((blob) => {
+        if (blob) saveMedia(blob, `dither-${Date.now()}.png`, 'image/png');
+    }, 'image/png');
 });
 
 function loop() {
