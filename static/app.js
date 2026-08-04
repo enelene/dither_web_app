@@ -426,6 +426,12 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', stopCamera);
 window.addEventListener('beforeunload', stopCamera);
 
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+    });
+}
+
 checkFastAPI();
 startCamera();
 requestAnimationFrame(loop);
